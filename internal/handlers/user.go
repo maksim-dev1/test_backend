@@ -4,14 +4,29 @@ import (
 	"log"
 	"net/http"
 	"yummy_mobile_app_backend/internal/models"
+
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
+// HashPassword шифрует пароль с использованием bcrypt
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+// CheckPassword проверяет совпадение хэшированного пароля и введённого
+func CheckPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
 // SetupRoutes регистрирует маршруты
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
-	api := r.Group("/yummy_app/test")  // Префикс для всех маршрутов
+	api := r.Group("/yummy_app/test") // Префикс для всех маршрутов
 	{
 		api.POST("/register", func(c *gin.Context) { RegisterUser(c, db) })
 		api.POST("/login", func(c *gin.Context) { LoginUser(c, db) })
@@ -19,7 +34,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		api.GET("/users", func(c *gin.Context) { GetAllUsers(c, db) })
 	}
 }
-
 
 // RegisterUser обрабатывает регистрацию нового пользователя
 func RegisterUser(c *gin.Context, db *gorm.DB) {
@@ -114,4 +128,3 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) {
 
 	c.JSON(http.StatusOK, gin.H{"users": userResponses})
 }
-

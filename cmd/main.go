@@ -4,6 +4,8 @@ import (
 	"log"
 	"yummy_mobile_app_backend/configs"
 	"yummy_mobile_app_backend/internal/handlers"
+	"yummy_mobile_app_backend/internal/models"
+
 	"github.com/gin-gonic/gin"
 )
 
