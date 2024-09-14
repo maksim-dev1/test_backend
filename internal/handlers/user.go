@@ -15,6 +15,7 @@ func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
+
 	}
 	return string(hashedPassword), nil
 }
@@ -23,6 +24,26 @@ func HashPassword(password string) (string, error) {
 func CheckPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
+
+// SetupRoutes регистрирует маршруты
+func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+	api := r.Group("/yummy_app/test") // Префикс для всех маршрутов
+	{
+		api.POST("/register", func(c *gin.Context) { RegisterUser(c, db) })
+		api.POST("/login", func(c *gin.Context) { LoginUser(c, db) })
+		api.GET("/user/:id", func(c *gin.Context) { GetUserByID(c, db) })
+		api.GET("/users", func(c *gin.Context) { GetAllUsers(c, db) })
+
+	}
+	return string(hashedPassword), nil
+}
+
+
+// CheckPassword проверяет совпадение хэшированного пароля и введённого
+func CheckPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
 
 // RegisterUser обрабатывает регистрацию нового пользователя
 func RegisterUser(c *gin.Context) {
@@ -77,4 +98,45 @@ func LoginUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+
+// GetUserByID получает данные пользователя по ID
+func GetUserByID(c *gin.Context, db *gorm.DB) {
+	id := c.Param("id")
+	var user models.User
+
+	// Поиск пользователя по ID
+	if err := db.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Возвращаем информацию о пользователе, кроме пароля
+	c.JSON(http.StatusOK, gin.H{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+	})
+}
+
+// GetAllUsers получает список всех пользователей
+func GetAllUsers(c *gin.Context, db *gorm.DB) {
+	var users []models.User
+
+	// Получение всех пользователей
+	if err := db.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
+		return
+	}
+
+	// Возвращаем список пользователей без паролей
+	userResponses := make([]map[string]interface{}, len(users))
+	for i, user := range users {
+		userResponses[i] = map[string]interface{}{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": userResponses})
 }
