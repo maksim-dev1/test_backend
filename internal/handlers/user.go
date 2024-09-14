@@ -3,11 +3,11 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"yummy_mobile_app_backend/configs"
 	"yummy_mobile_app_backend/internal/models"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // HashPassword шифрует пароль с использованием bcrypt
@@ -15,6 +15,7 @@ func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
+
 	}
 	return string(hashedPassword), nil
 }
@@ -32,11 +33,20 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		api.POST("/login", func(c *gin.Context) { LoginUser(c, db) })
 		api.GET("/user/:id", func(c *gin.Context) { GetUserByID(c, db) })
 		api.GET("/users", func(c *gin.Context) { GetAllUsers(c, db) })
+
 	}
+	return string(hashedPassword), nil
 }
 
+
+// CheckPassword проверяет совпадение хэшированного пароля и введённого
+func CheckPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
+
 // RegisterUser обрабатывает регистрацию нового пользователя
-func RegisterUser(c *gin.Context, db *gorm.DB) {
+func RegisterUser(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -52,6 +62,8 @@ func RegisterUser(c *gin.Context, db *gorm.DB) {
 	}
 	user.Password = hashedPassword
 
+	db := configs.ConnectDB()
+
 	// Сохранение пользователя в базу данных
 	if result := db.Create(&user); result.Error != nil {
 		log.Printf("Failed to create user: %v", result.Error)
@@ -63,13 +75,14 @@ func RegisterUser(c *gin.Context, db *gorm.DB) {
 }
 
 // LoginUser обрабатывает аутентификацию пользователя
-func LoginUser(c *gin.Context, db *gorm.DB) {
+func LoginUser(c *gin.Context) {
 	var input models.User
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	db := configs.ConnectDB()
 	var user models.User
 
 	// Поиск пользователя по email
@@ -85,7 +98,6 @@ func LoginUser(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
-}
 
 // GetUserByID получает данные пользователя по ID
 func GetUserByID(c *gin.Context, db *gorm.DB) {

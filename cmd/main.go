@@ -21,8 +21,8 @@ func main() {
 	// Инициализация Gin
 	r := gin.Default()
 
-	// Передаем базу данных в хендлеры
-	handlers.SetupRoutes(r, db)
+	// Регистрация маршрутов
+	r.POST("/register", handlers.RegisterUser)
 
 	// Запуск сервера
 	if err := r.Run(":8080"); err != nil {
