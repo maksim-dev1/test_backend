@@ -3,29 +3,26 @@ package handlers
 import (
 	"log"
 	"net/http"
-	"yummy_mobile_app_backend/configs"
 	"yummy_mobile_app_backend/internal/models"
-
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
-// HashPassword шифрует пароль с использованием bcrypt
-func HashPassword(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
+// SetupRoutes регистрирует маршруты
+func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+	api := r.Group("/yummy_app/test")  // Префикс для всех маршрутов
+	{
+		api.POST("/register", func(c *gin.Context) { RegisterUser(c, db) })
+		api.POST("/login", func(c *gin.Context) { LoginUser(c, db) })
+		api.GET("/user/:id", func(c *gin.Context) { GetUserByID(c, db) })
+		api.GET("/users", func(c *gin.Context) { GetAllUsers(c, db) })
 	}
-	return string(hashedPassword), nil
 }
 
-// CheckPassword проверяет совпадение хэшированного пароля и введённого
-func CheckPassword(hashedPassword, password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-}
 
 // RegisterUser обрабатывает регистрацию нового пользователя
-func RegisterUser(c *gin.Context) {
+func RegisterUser(c *gin.Context, db *gorm.DB) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -41,8 +38,6 @@ func RegisterUser(c *gin.Context) {
 	}
 	user.Password = hashedPassword
 
-	db := configs.ConnectDB()
-
 	// Сохранение пользователя в базу данных
 	if result := db.Create(&user); result.Error != nil {
 		log.Printf("Failed to create user: %v", result.Error)
@@ -54,14 +49,13 @@ func RegisterUser(c *gin.Context) {
 }
 
 // LoginUser обрабатывает аутентификацию пользователя
-func LoginUser(c *gin.Context) {
+func LoginUser(c *gin.Context, db *gorm.DB) {
 	var input models.User
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	db := configs.ConnectDB()
 	var user models.User
 
 	// Поиск пользователя по email
@@ -78,3 +72,46 @@ func LoginUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
+
+// GetUserByID получает данные пользователя по ID
+func GetUserByID(c *gin.Context, db *gorm.DB) {
+	id := c.Param("id")
+	var user models.User
+
+	// Поиск пользователя по ID
+	if err := db.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Возвращаем информацию о пользователе, кроме пароля
+	c.JSON(http.StatusOK, gin.H{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+	})
+}
+
+// GetAllUsers получает список всех пользователей
+func GetAllUsers(c *gin.Context, db *gorm.DB) {
+	var users []models.User
+
+	// Получение всех пользователей
+	if err := db.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
+		return
+	}
+
+	// Возвращаем список пользователей без паролей
+	userResponses := make([]map[string]interface{}, len(users))
+	for i, user := range users {
+		userResponses[i] = map[string]interface{}{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": userResponses})
+}
+

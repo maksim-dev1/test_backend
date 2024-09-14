@@ -4,8 +4,6 @@ import (
 	"log"
 	"yummy_mobile_app_backend/configs"
 	"yummy_mobile_app_backend/internal/handlers"
-	"yummy_mobile_app_backend/internal/models"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,8 +19,8 @@ func main() {
 	// Инициализация Gin
 	r := gin.Default()
 
-	// Регистрация маршрутов
-	r.POST("/register", handlers.RegisterUser)
+	// Передаем базу данных в хендлеры
+	handlers.SetupRoutes(r, db)
 
 	// Запуск сервера
 	if err := r.Run(":8080"); err != nil {
